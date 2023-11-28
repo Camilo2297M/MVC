@@ -1,0 +1,358 @@
+-----------------------------------------------------------------------------------------
+//codigo conexion a base de datos//
+Esta clase nos permite conectarnos a MySQL, debes cambiar los valores de las variables base, url, user y password correspondientes a tus datos que configuraste en la instalación de MySQL.
+
+
+package Modelo;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class Conexion {
+
+    Connection con = null;
+
+    String base = "tienda"; //nombre de la base de datos//
+    String url = "jdbc:mysql://localhost:3306/" + base;  //url de la base de datos//
+    String user = "root";
+    String password = "password";
+
+    public Connection getConexion() {
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            con = DriverManager.getConnection(url, user, password);
+
+        } catch (ClassNotFoundException | SQLException e) {
+            System.err.println(e);
+        }
+        return con;
+    }
+}
+---------------------------------------------------------------------------------------------
+//Paquete Modelo//
+Para transformar los atributos de la tabla producto a objetos y usarlos con facilidad necesitamos hacer un mapeo dentro de la clase Producto.java que está en el paquete Modelo. 
+Definimos los atributos generando sus getters y setters.
+
+
+package Modelo;
+
+public class Producto {
+
+    private int id;
+    private String codigo;
+    private String nombre;
+    private Double precio;
+    private int cantidad;
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public Double getPrecio() {
+        return precio;
+    }
+
+    public void setPrecio(Double precio) {
+        this.precio = precio;
+    }
+
+    public int getCantidad() {
+        return cantidad;
+    }
+
+    public void setCantidad(int cantidad) {
+        this.cantidad = cantidad;
+    }
+}
+-------------------------------------------------------------------------------------------------
+
+//Métodos CRUD//
+Después de realizar la conexión a MySQL y mapear los datos crearemos los métodos para las transacciones básicas; Registrar, Leer o Buscar, Modificar y Eliminar. 
+Dentro del paquete Modelo abrimos la clase ConsultasProducto.java y agregamos el siguiente código:
+
+
+
+package Modelo;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public class ConsultasProducto extends Conexion {
+******************************************************************************
+    public boolean registrar(Producto pro) {
+        PreparedStatement ps = null;
+        Connection con = getConexion();
+
+        String sql = "INSERT INTO producto (codigo, nombre, precio , cantidad) VALUES(?,?,?,?)";
+
+        try {
+            ps = con.prepareStatement(sql);
+            ps.setString(1, pro.getCodigo());
+            ps.setString(2, pro.getNombre());
+            ps.setDouble(3, pro.getPrecio());
+            ps.setInt(4, pro.getCantidad());
+            ps.execute();
+            return true;
+        } catch (SQLException e) {
+            System.err.println(e);
+            return false;
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException e) {
+                System.err.println(e);
+            }
+        }
+******************************************************************************
+    }
+
+    public boolean modificar(Producto pro) {
+        PreparedStatement ps = null;
+        Connection con = getConexion();
+
+        String sql = "UPDATE producto SET codigo=?, nombre=?, precio=?, cantidad=? WHERE id=? ";
+
+        try {
+            ps = con.prepareStatement(sql);
+            ps.setString(1, pro.getCodigo());
+            ps.setString(2, pro.getNombre());
+            ps.setDouble(3, pro.getPrecio());
+            ps.setInt(4, pro.getCantidad());
+            ps.setInt(5, pro.getId());
+            ps.execute();
+            return true;
+        } catch (SQLException e) {
+            System.err.println(e);
+            return false;
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException e) {
+                System.err.println(e);
+            }
+        }
+***************************************************************************
+    }
+
+    public boolean eliminar(Producto pro) {
+        PreparedStatement ps = null;
+        Connection con = getConexion();
+
+        String sql = "DELETE FROM producto WHERE id=? ";
+
+        try {
+            ps = con.prepareStatement(sql);
+            ps.setInt(1, pro.getId());
+            ps.execute();
+            return true;
+        } catch (SQLException e) {
+            System.err.println(e);
+            return false;
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException e) {
+                System.err.println(e);
+            }
+        }
+*************************************************************************
+    }
+
+    public boolean buscar(Producto pro) {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection con = getConexion();
+
+        String sql = "SELECT * FROM producto WHERE codigo=? ";
+
+        try {
+            ps = con.prepareStatement(sql);
+            ps.setString(1, pro.getCodigo());
+            rs = ps.executeQuery();
+
+            if (rs.next()) {
+                pro.setId(Integer.parseInt(rs.getString("id")));
+                pro.setCodigo(rs.getString("codigo"));
+                pro.setNombre(rs.getString("nombre"));
+                pro.setPrecio(Double.parseDouble(rs.getString("precio")));
+                pro.setCantidad(Integer.parseInt(rs.getString("cantidad")));
+                return true;
+            }
+            return false;
+        } catch (SQLException e) {
+            System.err.println(e);
+            return false;
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException e) {
+                System.err.println(e);
+            }
+        }
+    }
+}
+-------------------------------------------------------------------------------------------------
+
+//Controlador//
+
+Para que la vista pueda interactuar con el modelo usaremos la clase CtrlProducto.java que se encuentra dentro del paquete Controlador. Con esto terminas aplicando la arquitectura MVC.
+
+Esta clase implementa la interfaz ActionListener la cual se usa para detectar y manejar eventos de acción, como el clic en los botones.
+package Controlador;
+
+
+import Modelo.ConsultasProducto;
+import Modelo.Producto;
+import Vista.frmProducto;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.JOptionPane;
+
+public class CtrlProducto implements ActionListener {
+
+    private final Producto modelo;
+    private final ConsultasProducto consultas;
+    private final frmProducto vista;
+
+    public CtrlProducto(Producto modelo, ConsultasProducto consultas, frmProducto vista) {
+        this.modelo = modelo;
+        this.consultas = consultas;
+        this.vista = vista;
+        this.vista.btnGuardar.addActionListener(this);
+        this.vista.btnModificar.addActionListener(this);
+        this.vista.btnEliminar.addActionListener(this);
+        this.vista.btnLimpiar.addActionListener(this);
+        this.vista.btnBuscar.addActionListener(this);
+    }
+
+    public void iniciar() {
+        vista.setTitle("Productos");
+        vista.setLocationRelativeTo(null);
+        vista.txtId.setVisible(false);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+
+        if (e.getSource() == vista.btnGuardar) {
+            modelo.setCodigo(vista.txtCodigo.getText());
+            modelo.setNombre(vista.txtNombre.getText());
+            modelo.setPrecio(Double.parseDouble(vista.txtPrecio.getText()));
+            modelo.setCantidad(Integer.parseInt(vista.txtCantidad.getText()));
+
+            if (consultas.registrar(modelo)) {
+                JOptionPane.showMessageDialog(null, "Registro Guardado");
+                limpiar();
+            } else {
+                JOptionPane.showMessageDialog(null, "Error al Guardar");
+                limpiar();
+            }
+        }
+
+        if (e.getSource() == vista.btnModificar) {
+            modelo.setId(Integer.parseInt(vista.txtId.getText()));
+            modelo.setCodigo(vista.txtCodigo.getText());
+            modelo.setNombre(vista.txtNombre.getText());
+            modelo.setPrecio(Double.parseDouble(vista.txtPrecio.getText()));
+            modelo.setCantidad(Integer.parseInt(vista.txtCantidad.getText()));
+
+            if (consultas.modificar(modelo)) {
+                JOptionPane.showMessageDialog(null, "Registro Modificado");
+                limpiar();
+            } else {
+                JOptionPane.showMessageDialog(null, "Error al Modificar");
+                limpiar();
+            }
+        }
+
+        if (e.getSource() == vista.btnEliminar) {
+            modelo.setId(Integer.parseInt(vista.txtId.getText()));
+
+            if (consultas.eliminar(modelo)) {
+                JOptionPane.showMessageDialog(null, "Registro Eliminado");
+                limpiar();
+            } else {
+                JOptionPane.showMessageDialog(null, "Error al Eliminar");
+                limpiar();
+            }
+        }
+
+        if (e.getSource() == vista.btnBuscar) {
+            modelo.setCodigo(vista.txtCodigo.getText());
+
+            if (consultas.buscar(modelo)) {
+                vista.txtId.setText(String.valueOf(modelo.getId()));
+                vista.txtCodigo.setText(modelo.getCodigo());
+                vista.txtNombre.setText(modelo.getNombre());
+                vista.txtPrecio.setText(String.valueOf(modelo.getPrecio()));
+                vista.txtCantidad.setText(String.valueOf(modelo.getCantidad()));
+
+            } else {
+                JOptionPane.showMessageDialog(null, "No se encontro registro");
+                limpiar();
+            }
+        }
+
+        if (e.getSource() == vista.btnLimpiar) {
+            limpiar();
+        }
+    }
+
+    public void limpiar() {
+        vista.txtId.setText(null);
+        vista.txtCodigo.setText(null);
+        vista.txtNombre.setText(null);
+        vista.txtPrecio.setText(null);
+        vista.txtCantidad.setText(null);
+    }
+}
+------------------------------------------------------------------------------------------------
+
+//Ejecutar proyecto CRUD en la clase main.//
+
+package crudmvc;
+
+import Controlador.CtrlProducto;
+import Modelo.ConsultasProducto;
+import Modelo.Producto;
+import Vista.frmProducto;
+
+public class CRUDMVC {
+
+    public static void main(String[] args) {
+
+        Producto mod = new Producto();
+        ConsultasProducto modC = new ConsultasProducto();
+        frmProducto frm = new frmProducto();
+
+        CtrlProducto ctrl = new CtrlProducto(mod, modC, frm);
+        ctrl.iniciar();
+        frm.setVisible(true);
+    }
+}
+----------------------------------------------------------------------------------------------
